@@ -1,0 +1,7 @@
+{
+  "name": "Shirin Asal ISM 2025 Visitor Registration",
+  "description": "A professional visitor registration and lead capture application for the Shirin Asal booth at ISM Middle East 2025. Features business card scanning, data management, and analytics.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
