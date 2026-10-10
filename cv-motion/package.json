@@ -1,0 +1,15 @@
+{
+  "name": "cv-motion-studio",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Code-driven isometric CV animation: edit config.js, preview in studio.html, render with render.mjs",
+  "scripts": {
+    "render": "node render.mjs",
+    "preview": "node render.mjs --seconds 12 --out output/preview.mp4",
+    "music": "node music.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  }
+}
