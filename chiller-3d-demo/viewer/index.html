@@ -88,8 +88,8 @@ button[aria-pressed="true"] { background: var(--accent); border-color: var(--acc
   <div class="stage">
     <canvas id="c" tabindex="0" aria-label="3D chiller model. Drag to orbit, click a part to select it."></canvas>
     <div class="title">
-      <h1>Air-Cooled Screw Chiller</h1>
-      <div class="dims" id="dims">14 fans · V-coil · 2 circuits</div>
+      <h1 id="model-name">YCAL0134 Scroll Chiller</h1>
+      <div class="dims" id="dims">8 fans · 6 scroll compressors · 2 systems</div>
     </div>
     <div class="hint">Drag to orbit · Scroll to zoom · Click a part</div>
     <div class="loader" id="loader">Loading model… 0%</div>
@@ -129,7 +129,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
-const MODEL_URLS = ["chiller_aircooled_screw.glb", "../chiller_aircooled_screw.glb"];
+const MODEL_URLS = ["york_ycal0134_chiller.glb", "../york_ycal0134_chiller.glb"];
 const $ = (id) => document.getElementById(id);
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
@@ -225,8 +225,10 @@ loadModel().then((gltf) => {
   });
   parts.sort((a, b) => a.userData.part_id.localeCompare(b.userData.part_id));
   const rd = root.children[0]?.userData || {};
+  if (rd.model) $("model-name").textContent = `${rd.model} Air-Cooled Scroll Chiller`;
   if (rd.length_mm) {
-    $("dims").textContent = `${(rd.length_mm / 1000).toFixed(2)} × ${(rd.width_mm / 1000).toFixed(2)} × ${(rd.height_mm / 1000).toFixed(2)} m  ·  ${Math.round(rd.length_in)} × ${Math.round(rd.width_in)} × ${Math.round(rd.height_in)} in  ·  ${parts.length} parts`;
+    const tons = rd.nominal_tons_R22 ? `${Math.round(rd.nominal_tons_R22)} tons  ·  ` : "";
+    $("dims").textContent = `${tons}${Math.round(rd.length_in)} × ${Math.round(rd.width_in)} × ${Math.round(rd.height_in)} in  ·  ${(rd.length_mm / 1000).toFixed(2)} × ${(rd.width_mm / 1000).toFixed(2)} × ${(rd.height_mm / 1000).toFixed(2)} m  ·  ${parts.length} parts`;
   }
   if (gltf.animations.length) {
     mixer = new THREE.AnimationMixer(root);
@@ -397,7 +399,7 @@ function focus(obj) {
 }
 function resetView() {
   const narrow = camera.aspect < 1;
-  flyTo(new THREE.Vector3(0, 1.0, 0), narrow ? new THREE.Vector3(-11, 9, 15) : new THREE.Vector3(-8.5, 5.5, 9.5));
+  flyTo(new THREE.Vector3(0, 1.05, 0), narrow ? new THREE.Vector3(-8, 6, 10.5) : new THREE.Vector3(-5.8, 3.7, 6.4));
 }
 
 $("a-focus").onclick = () => selected && focus(selectedSub || selected);
