@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chiller Parts Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: full-bleed 3D stage + right-hand parts rail (stacks under the stage on phones) */
+:root {
+  --bg: #eef1f4;
+  --stage: #dfe4ea;
+  --panel: #f8f9fb;
+  --line: #cfd6de;
+  --fg: #18212b;
+  --muted: #5a6875;
+  --accent: #1f5fa8;
+  --select: #e8890c;
+  --chip: #e3e9f0;
+  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161c; --stage: #1a2129; --panel: #151b22; --line: #2a3440; --fg: #e4e9ee;
+    --muted: #93a1ae; --accent: #6aa5ea; --select: #f5a23a; --chip: #212a34; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161c; --stage: #1a2129; --panel: #151b22; --line: #2a3440; --fg: #e4e9ee;
+  --muted: #93a1ae; --accent: #6aa5ea; --select: #f5a23a; --chip: #212a34; color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; overflow: hidden; }
+.app { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
+.stage { position: relative; min-width: 0; background: var(--stage); }
+#c { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+.title { position: absolute; top: 16px; left: 16px; right: 16px; pointer-events: none; display: grid; gap: 2px; }
+.title h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 28px; letter-spacing: .02em; text-transform: uppercase; text-wrap: balance; line-height: 1; }
+.title .dims { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.toolbar { position: absolute; left: 16px; right: 16px; bottom: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tool { display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+.tool label { font-family: var(--display); text-transform: uppercase; letter-spacing: .08em; font-size: 14px; font-weight: 600; color: var(--muted); }
+#explode { width: 140px; accent-color: var(--accent); }
+button { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible, .row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+.hint { position: absolute; top: 16px; right: 16px; font-size: 12px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.tip { position: absolute; pointer-events: none; background: var(--fg); color: var(--bg); font-size: 12px; padding: 3px 8px; border-radius: 4px; transform: translate(12px, 12px); white-space: nowrap; }
+.loader { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--mono); color: var(--muted); }
+.rail { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.card { padding: 16px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.eyebrow { font-family: var(--display); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.card h2 { margin: 0; font-family: var(--display); font-size: 24px; font-weight: 600; line-height: 1.05; text-wrap: balance; }
+.card p { margin: 0; line-height: 1.5; color: var(--fg); }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; font-family: var(--mono); font-size: 11.5px; }
+.chip { background: var(--chip); border-radius: 4px; padding: 2px 6px; color: var(--muted); }
+.chip.id { color: var(--select); font-weight: 500; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.actions button { padding: 4px 10px; font-size: 12.5px; }
+.list { overflow-y: auto; padding-block: 6px; flex: 1; min-height: 0; }
+.row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 16px; cursor: pointer; border-left: 3px solid transparent; }
+.row:hover { background: var(--chip); }
+.row.on { border-left-color: var(--select); background: var(--chip); }
+.row.off { opacity: .45; }
+.row .pid { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.row .nm { font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.row .cat { font-size: 11px; color: var(--muted); }
+.subs { display: grid; padding: 0 16px 6px 58px; gap: 2px; }
+.sub { font-size: 12.5px; color: var(--muted); cursor: pointer; padding: 2px 0; overflow-wrap: anywhere; }
+.sub:hover, .sub.on { color: var(--select); }
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 44%); }
+  .rail { border-left: 0; border-top: 1px solid var(--line); }
+  .title h1 { font-size: 22px; }
+  .hint { display: none; }
+  #explode { width: 100px; }
+  .card { padding: 12px 16px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app">
+  <div class="stage">
+    <canvas id="c" tabindex="0" aria-label="3D chiller model. Drag to orbit, click a part to select it."></canvas>
+    <div class="title">
+      <h1>Air-Cooled Screw Chiller</h1>
+      <div class="dims" id="dims">14 fans · V-coil · 2 circuits</div>
+    </div>
+    <div class="hint">Drag to orbit · Scroll to zoom · Click a part</div>
+    <div class="loader" id="loader">Loading model… 0%</div>
+    <div class="tip" id="tip" hidden></div>
+    <div class="toolbar">
+      <div class="tool"><label for="explode">Explode</label><input id="explode" type="range" min="0" max="100" value="0"></div>
+      <button id="spin" aria-pressed="true">Fans running</button>
+      <button id="showall">Show all</button>
+      <button id="reset">Reset view</button>
+    </div>
+  </div>
+  <aside class="rail">
+    <div class="card" id="info">
+      <div class="eyebrow">Selected part</div>
+      <h2 id="i-name">Nothing selected</h2>
+      <div class="meta" id="i-meta"></div>
+      <p id="i-desc">Click any component on the model, or pick one from the list below. Each part is a separate node in the GLB file.</p>
+      <div class="actions" id="i-actions" hidden>
+        <button id="a-focus">Zoom to part</button>
+        <button id="a-isolate">Show only this</button>
+        <button id="a-hide">Hide</button>
+      </div>
+    </div>
+    <div class="list" id="list" role="list"></div>
+  </aside>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+const MODEL_URLS = ["chiller_aircooled_screw.glb", "../chiller_aircooled_screw.glb"];
+const $ = (id) => document.getElementById(id);
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+const canvas = $("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 200);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.minDistance = 1.2;
+controls.maxDistance = 40;
+
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(-8, 14, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 1, far: 40 });
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.ShadowMaterial({ opacity: 0.22 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+const grid = new THREE.GridHelper(40, 40, 0x000000, 0x000000);
+grid.material.transparent = true;
+grid.material.opacity = 0.06;
+scene.add(grid);
+
+function applyTheme() {
+  scene.background = new THREE.Color(css("--stage"));
+  const dark = scene.background.getHSL({}).l < 0.4;
+  grid.material.color.set(dark ? 0xffffff : 0x000000);
+  ground.material.opacity = dark ? 0.4 : 0.22;
+}
+applyTheme();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+function resize() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / Math.max(r.height, 1);
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(canvas.parentElement);
+
+// ---------------------------------------------------------------- model
+let root, mixer, action;
+const parts = [];           // top-level parts (P01..P09)
+const exploders = [];       // nodes carrying an explode vector
+const selColor = new THREE.Color();
+let selected = null, selectedSub = null, hovered = null;
+
+async function loadModel() {
+  const loader = new GLTFLoader();
+  for (const url of MODEL_URLS) {
+    try {
+      return await loader.loadAsync(url, (e) => {
+        if (e.total) $("loader").textContent = `Loading model… ${Math.round((e.loaded / e.total) * 100)}%`;
+      });
+    } catch (err) { console.warn("GLB not at", url, err); }
+  }
+  throw new Error("Model file not found");
+}
+
+loadModel().then((gltf) => {
+  root = gltf.scene;
+  scene.add(root);
+  root.traverse((o) => {
+    if (o.isMesh) {
+      o.castShadow = true;
+      o.receiveShadow = true;
+      o.material = o.material.clone();
+      o.userData.baseEmissive = o.material.emissive.clone();
+      o.userData.baseEmissiveIntensity = o.material.emissiveIntensity;
+    }
+    if (Array.isArray(o.userData.explode)) {
+      o.userData.home = o.position.clone();
+      o.userData.ev = new THREE.Vector3().fromArray(o.userData.explode);
+      if (o.userData.ev.lengthSq() > 0) exploders.push(o);
+    }
+    if (o.userData.part_id) parts.push(o);
+  });
+  parts.sort((a, b) => a.userData.part_id.localeCompare(b.userData.part_id));
+  const rd = root.children[0]?.userData || {};
+  if (rd.length_mm) {
+    $("dims").textContent = `${(rd.length_mm / 1000).toFixed(2)} × ${(rd.width_mm / 1000).toFixed(2)} × ${(rd.height_mm / 1000).toFixed(2)} m  ·  ${Math.round(rd.length_in)} × ${Math.round(rd.width_in)} × ${Math.round(rd.height_in)} in  ·  ${parts.length} parts`;
+  }
+  if (gltf.animations.length) {
+    mixer = new THREE.AnimationMixer(root);
+    action = mixer.clipAction(gltf.animations[0]);
+    action.timeScale = 6;
+    action.play();
+  }
+  buildList();
+  resetView();
+  $("loader").hidden = true;
+}).catch((err) => {
+  $("loader").textContent = "The model file could not be loaded. Serve this folder over HTTP (for example: npx serve) and reload.";
+  console.error(err);
+});
+
+function partOf(obj) {
+  let o = obj;
+  while (o && !o.userData.part_id) o = o.parent;
+  return o;
+}
+function subOf(obj, part) {          // direct child of the part that contains obj
+  let o = obj;
+  while (o && o.parent !== part) o = o.parent;
+  return o;
+}
+const label = (o) => o?.userData?.display_name || o?.name?.replace(/_/g, " ") || "";
+
+// ---------------------------------------------------------------- highlight
+function paint() {
+  const sel = new THREE.Color(css("--select"));
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const p = partOf(o);
+    const inSub = selectedSub && subOf(o, selected) === selectedSub;
+    let c = null, k = 0;
+    if (p && p === selected) { c = sel; k = selectedSub ? (inSub ? 0.6 : 0.12) : 0.45; }
+    else if (p && p === hovered) { c = sel; k = 0.15; }
+    if (c) { o.material.emissive.copy(c); o.material.emissiveIntensity = k; }
+    else { o.material.emissive.copy(o.userData.baseEmissive); o.material.emissiveIntensity = o.userData.baseEmissiveIntensity; }
+  });
+}
+
+function select(part, sub = null) {
+  selected = part; selectedSub = sub;
+  paint();
+  document.querySelectorAll(".row").forEach((r) => r.classList.toggle("on", r.dataset.name === part?.name));
+  document.querySelectorAll(".sub").forEach((r) => r.classList.toggle("on", r.dataset.name === sub?.name));
+  if (!part) {
+    $("i-name").textContent = "Nothing selected";
+    $("i-meta").replaceChildren();
+    $("i-desc").textContent = "Click any component on the model, or pick one from the list below. Each part is a separate node in the GLB file.";
+    $("i-actions").hidden = true;
+    return;
+  }
+  const d = part.userData;
+  $("i-name").textContent = d.display_name;
+  const chips = [["id", d.part_id], ["", d.category], ["", `node: ${part.name}`]];
+  if (sub) chips.push(["", `sub-part: ${label(sub)}`]);
+  $("i-meta").replaceChildren(...chips.map(([cls, t]) => {
+    const s = document.createElement("span");
+    s.className = "chip " + cls;
+    s.textContent = t;
+    return s;
+  }));
+  $("i-desc").textContent = d.description || "";
+  $("i-actions").hidden = false;
+}
+
+// ---------------------------------------------------------------- parts list
+function buildList() {
+  const list = $("list");
+  for (const p of parts) {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.dataset.name = p.name;
+    row.tabIndex = 0;
+    row.setAttribute("role", "listitem");
+    row.innerHTML = `<span class="pid"></span><span class="nm"></span><span class="cat"></span>`;
+    row.children[0].textContent = p.userData.part_id;
+    row.children[1].textContent = p.userData.display_name;
+    row.children[2].textContent = `${p.children.length} node${p.children.length > 1 ? "s" : ""}`;
+    const subs = document.createElement("div");
+    subs.className = "subs";
+    subs.hidden = true;
+    for (const c of p.children) {
+      const s = document.createElement("div");
+      s.className = "sub";
+      s.dataset.name = c.name;
+      s.textContent = label(c);
+      s.addEventListener("click", (e) => { e.stopPropagation(); select(p, c); });
+      subs.appendChild(s);
+    }
+    const open = () => {
+      document.querySelectorAll(".subs").forEach((x) => { if (x !== subs) x.hidden = true; });
+      subs.hidden = false;
+      select(p);
+    };
+    row.addEventListener("click", open);
+    row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+    list.append(row, subs);
+  }
+}
+
+function refreshRowVisibility() {
+  for (const p of parts) {
+    document.querySelector(`.row[data-name="${p.name}"]`)?.classList.toggle("off", !p.visible);
+  }
+}
+
+// ---------------------------------------------------------------- picking
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+function pick(ev) {
+  if (!root) return null;
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObject(root, true).find((h) => {
+    let o = h.object;
+    while (o) { if (!o.visible) return false; o = o.parent; }
+    return true;
+  });
+  return hit ? hit.object : null;
+}
+let downAt = null;
+canvas.addEventListener("pointerdown", (e) => { downAt = [e.clientX, e.clientY]; });
+canvas.addEventListener("pointerup", (e) => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
+  const o = pick(e);
+  const p = o && partOf(o);
+  if (!p) { select(null); return; }
+  const sub = subOf(o, p);
+  // first click selects the part, a second click on it drills into the sub-part
+  select(p, selected === p && !selectedSub ? sub : null);
+  const subs = document.querySelector(`.row[data-name="${p.name}"]`)?.nextElementSibling;
+  document.querySelectorAll(".subs").forEach((x) => { x.hidden = x !== subs; });
+  document.querySelector(`.row[data-name="${p.name}"]`)?.scrollIntoView({ block: "nearest" });
+});
+canvas.addEventListener("dblclick", () => { if (selected) focus(selectedSub || selected); });
+canvas.addEventListener("pointermove", (e) => {
+  if (e.buttons) return;
+  const o = pick(e);
+  const p = o && partOf(o);
+  const tip = $("tip");
+  if (p) {
+    const r = canvas.getBoundingClientRect();
+    tip.textContent = `${p.userData.part_id} · ${p.userData.display_name}`;
+    tip.style.left = `${e.clientX - r.left}px`;
+    tip.style.top = `${e.clientY - r.top}px`;
+    tip.hidden = false;
+  } else tip.hidden = true;
+  if (p !== hovered) { hovered = p; paint(); }
+  canvas.style.cursor = p ? "pointer" : "grab";
+});
+canvas.addEventListener("pointerleave", () => { $("tip").hidden = true; hovered = null; if (root) paint(); });
+
+// ---------------------------------------------------------------- camera moves
+let tween = null;
+function flyTo(target, pos) {
+  tween = { t: 0, ft: controls.target.clone(), fp: camera.position.clone(), tt: target, tp: pos };
+}
+function focus(obj) {
+  const box = new THREE.Box3().setFromObject(obj);
+  const c = box.getCenter(new THREE.Vector3());
+  const r = Math.max(box.getSize(new THREE.Vector3()).length() * 0.5, 0.4);
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  flyTo(c, c.clone().add(dir.multiplyScalar(r / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.9)));
+}
+function resetView() {
+  const narrow = camera.aspect < 1;
+  flyTo(new THREE.Vector3(0, 1.0, 0), narrow ? new THREE.Vector3(-11, 9, 15) : new THREE.Vector3(-8.5, 5.5, 9.5));
+}
+
+$("a-focus").onclick = () => selected && focus(selectedSub || selected);
+$("a-isolate").onclick = () => { if (!selected) return; parts.forEach((p) => (p.visible = p === selected)); refreshRowVisibility(); focus(selected); };
+$("a-hide").onclick = () => { if (!selected) return; selected.visible = false; refreshRowVisibility(); select(null); };
+$("showall").onclick = () => { parts.forEach((p) => (p.visible = true)); refreshRowVisibility(); };
+$("reset").onclick = () => { $("explode").value = 0; setExplode(0); resetView(); };
+$("spin").onclick = (e) => {
+  const on = e.currentTarget.getAttribute("aria-pressed") !== "true";
+  e.currentTarget.setAttribute("aria-pressed", String(on));
+  e.currentTarget.textContent = on ? "Fans running" : "Fans stopped";
+  if (action) action.paused = !on;
+};
+
+// ---------------------------------------------------------------- explode
+let explodeTarget = 0, explodeNow = 0;
+function setExplode(v) { explodeTarget = v; }
+$("explode").addEventListener("input", (e) => setExplode(e.target.value / 100));
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ---------------------------------------------------------------- loop
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (mixer) mixer.update(dt);
+  if (Math.abs(explodeTarget - explodeNow) > 1e-4) {
+    explodeNow = reduce ? explodeTarget : explodeNow + (explodeTarget - explodeNow) * Math.min(dt * 8, 1);
+    for (const o of exploders) o.position.copy(o.userData.home).addScaledVector(o.userData.ev, explodeNow);
+  }
+  if (tween) {
+    tween.t = reduce ? 1 : Math.min(tween.t + dt * 1.6, 1);
+    const k = 1 - Math.pow(1 - tween.t, 3);
+    controls.target.lerpVectors(tween.ft, tween.tt, k);
+    camera.position.lerpVectors(tween.fp, tween.tp, k);
+    if (tween.t >= 1) tween = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
